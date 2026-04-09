@@ -78,6 +78,13 @@ export default function CalendarGrid({
     const hasNotes = getNotesForDate(date).length > 0;
     const notePreview = getNotesForDate(date);
 
+    // Days in last 2 rows show tooltip above, others show below
+    const totalCells = startDay + totalDays;
+    const totalRows = Math.ceil(totalCells / 7);
+    const cellIndex = startDay + day - 1;
+    const rowIndex = Math.floor(cellIndex / 7);
+    const showAbove = rowIndex >= totalRows - 2;
+
     cells.push(
       <div key={day} className="relative group">
         <button
@@ -87,17 +94,12 @@ export default function CalendarGrid({
             "w-full h-10 sm:h-12 rounded-lg text-sm sm:text-base font-medium",
             "transition-all duration-200 relative select-none",
             "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
-            // Base
             "hover:bg-secondary",
-            // Weekend
             isWeekend && "text-calendar-weekend",
-            // Today
             today && "ring-2 ring-calendar-today animate-today-pulse font-bold",
-            // Range states
             rangeStart && "bg-calendar-accent text-primary-foreground rounded-r-none hover:bg-calendar-accent",
             rangeEnd && "bg-calendar-accent text-primary-foreground rounded-l-none hover:bg-calendar-accent",
             inRange && "bg-calendar-range rounded-none",
-            // Holiday
             holiday && "font-semibold",
           )}
           onClick={() => onDateClick(date)}
@@ -128,11 +130,17 @@ export default function CalendarGrid({
 
         {/* Hover preview for notes */}
         {hoveredDay === day && notePreview.length > 0 && (
-          <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 
-            bg-card border border-border rounded-lg shadow-lg p-2 min-w-[160px]
-            animate-float-in pointer-events-none">
+          <div
+            className={cn(
+              "absolute z-50 left-1/2 -translate-x-1/2",
+              "bg-card border border-border rounded-lg shadow-xl p-2",
+              "animate-float-in pointer-events-none",
+              showAbove ? "bottom-full mb-2" : "top-full mt-2"
+            )}
+            style={{ width: "max-content", maxWidth: "200px" }}
+          >
             {notePreview.slice(0, 2).map((n) => (
-              <p key={n.id} className="text-xs text-foreground truncate">{n.text}</p>
+              <p key={n.id} className="text-xs text-foreground break-words">{n.text}</p>
             ))}
             {notePreview.length > 2 && (
               <p className="text-xs text-muted-foreground">+{notePreview.length - 2} more</p>
@@ -145,10 +153,15 @@ export default function CalendarGrid({
 
         {/* Holiday tooltip */}
         {hoveredDay === day && holiday && notePreview.length === 0 && (
-          <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 
-    bg-card border border-border rounded-lg shadow-lg px-3 py-1.5
-    animate-float-in pointer-events-none"
-            style={{ width: "max-content", maxWidth: "200px" }}>
+          <div
+            className={cn(
+              "absolute z-50 left-1/2 -translate-x-1/2",
+              "bg-card border border-border rounded-lg shadow-xl px-3 py-1.5",
+              "animate-float-in pointer-events-none",
+              showAbove ? "bottom-full mb-2" : "top-full mt-2"
+            )}
+            style={{ width: "max-content", maxWidth: "200px" }}
+          >
             <p className="text-xs text-calendar-holiday font-medium break-words">{holiday.name}</p>
           </div>
         )}
