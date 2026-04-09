@@ -146,9 +146,10 @@ export default function CalendarGrid({
         {/* Holiday tooltip */}
         {hoveredDay === day && holiday && notePreview.length === 0 && (
           <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 
-            bg-card border border-border rounded-lg shadow-lg px-2 py-1
-            animate-float-in pointer-events-none whitespace-nowrap">
-            <p className="text-xs text-calendar-holiday font-medium">{holiday.name}</p>
+    bg-card border border-border rounded-lg shadow-lg px-3 py-1.5
+    animate-float-in pointer-events-none"
+            style={{ width: "max-content", maxWidth: "200px" }}>
+            <p className="text-xs text-calendar-holiday font-medium break-words">{holiday.name}</p>
           </div>
         )}
       </div>
