@@ -1,4 +1,5 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { getHolidayForDate } from "@/data/holidays";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,43 @@ function getStartDay(year: number, month: number) {
   return d === 0 ? 6 : d - 1;
 }
 
+interface TooltipPortalProps {
+  anchorRef: React.RefObject<HTMLButtonElement>;
+  children: React.ReactNode;
+}
+
+function TooltipPortal({ anchorRef, children }: TooltipPortalProps) {
+  const [style, setStyle] = useState<React.CSSProperties>({});
+
+  useEffect(() => {
+    if (!anchorRef.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const tooltipWidth = 180;
+
+    // Horizontal: keep within viewport
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+    if (left + tooltipWidth > viewportWidth - 8) left = viewportWidth - tooltipWidth - 8;
+    if (left < 8) left = 8;
+
+    // Vertical: show below if space, else above
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow > 80
+      ? rect.bottom + window.scrollY + 4
+      : rect.top + window.scrollY - 4;
+    const transform = spaceBelow > 80 ? "translateY(0)" : "translateY(-100%)";
+
+    setStyle({ position: "absolute", top, left, transform, width: tooltipWidth, zIndex: 9999 });
+  }, [anchorRef]);
+
+  return createPortal(
+    <div style={style} className="bg-card border border-border rounded-lg shadow-xl pointer-events-none animate-float-in">
+      {children}
+    </div>,
+    document.body
+  );
+}
+
 export default function CalendarGrid({
   year, month, isToday, isInRange, isRangeStart, isRangeEnd,
   getNotesForDate, onDateClick, onDragStart, onDragOver, onDragEnd, onDateFocus,
@@ -37,6 +75,7 @@ export default function CalendarGrid({
   const gridRef = useRef<HTMLDivElement>(null);
   const [focusedDay, setFocusedDay] = useState<number | null>(null);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+  const buttonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   const totalDays = getDaysInMonth(year, month);
   const startDay = getStartDay(year, month);
@@ -52,7 +91,6 @@ export default function CalendarGrid({
       onDateClick(new Date(year, month, day));
       return;
     } else return;
-
     e.preventDefault();
     setFocusedDay(newDay);
     const btn = gridRef.current?.querySelector(`[data-day="${newDay}"]`) as HTMLElement;
@@ -68,12 +106,7 @@ export default function CalendarGrid({
   for (let day = 1; day <= totalDays; day++) {
     const date = new Date(year, month, day);
     const cellIndex = startDay + day - 1;
-    const colIndex = cellIndex % 7; // 0=MON ... 6=SUN
-    const totalCells = startDay + totalDays;
-    const totalRows = Math.ceil(totalCells / 7);
-    const rowIndex = Math.floor(cellIndex / 7);
-
-    const dayOfWeek = colIndex;
+    const dayOfWeek = cellIndex % 7;
     const isWeekend = dayOfWeek >= 5;
     const holiday = getHolidayForDate(month, day);
     const today = isToday(date);
@@ -82,25 +115,15 @@ export default function CalendarGrid({
     const rangeEnd = isRangeEnd(date);
     const hasNotes = getNotesForDate(date).length > 0;
     const notePreview = getNotesForDate(date);
+    const btnRef = { current: buttonRefs.current.get(day) ?? null } as React.RefObject<HTMLButtonElement>;
 
-    // Vertical: show above for last 2 rows
-    const showAbove = rowIndex >= totalRows - 2;
-    // Horizontal: align right for last 2 cols, left for first 2 cols, center otherwise
-    const tooltipAlign =
-      colIndex >= 5 ? "right-0 translate-x-0" :
-      colIndex <= 1 ? "left-0 translate-x-0" :
-      "left-1/2 -translate-x-1/2";
-
-    const tooltipPositionClass = cn(
-      "absolute z-50",
-      tooltipAlign,
-      showAbove ? "bottom-full mb-2" : "top-full mt-2"
-    );
+    const showTooltip = hoveredDay === day && (holiday || notePreview.length > 0);
 
     cells.push(
       <div key={day} className="relative group">
         <button
           data-day={day}
+          ref={(el) => { if (el) buttonRefs.current.set(day, el); }}
           tabIndex={focusedDay === day || (!focusedDay && day === 1) ? 0 : -1}
           className={cn(
             "w-full h-10 sm:h-12 rounded-lg text-sm sm:text-base font-medium",
@@ -134,36 +157,20 @@ export default function CalendarGrid({
           )}
         </button>
 
-        {/* Hover preview for notes */}
-        {hoveredDay === day && notePreview.length > 0 && (
-          <div
-            className={cn(tooltipPositionClass,
-              "bg-card border border-border rounded-lg shadow-xl p-2 animate-float-in pointer-events-none"
-            )}
-            style={{ width: "max-content", maxWidth: "180px" }}
-          >
-            {notePreview.slice(0, 2).map((n) => (
-              <p key={n.id} className="text-xs text-foreground break-words">{n.text}</p>
-            ))}
-            {notePreview.length > 2 && (
-              <p className="text-xs text-muted-foreground">+{notePreview.length - 2} more</p>
-            )}
-            {holiday && (
-              <p className="text-xs text-calendar-holiday font-medium mt-1 break-words">{holiday.name}</p>
-            )}
-          </div>
-        )}
-
-        {/* Holiday tooltip */}
-        {hoveredDay === day && holiday && notePreview.length === 0 && (
-          <div
-            className={cn(tooltipPositionClass,
-              "bg-card border border-border rounded-lg shadow-xl px-3 py-1.5 animate-float-in pointer-events-none"
-            )}
-            style={{ width: "max-content", maxWidth: "180px" }}
-          >
-            <p className="text-xs text-calendar-holiday font-medium break-words">{holiday.name}</p>
-          </div>
+        {showTooltip && (
+          <TooltipPortal anchorRef={btnRef}>
+            <div className="px-3 py-2">
+              {holiday && (
+                <p className="text-xs text-calendar-holiday font-semibold break-words">{holiday.name}</p>
+              )}
+              {notePreview.slice(0, 2).map((n) => (
+                <p key={n.id} className="text-xs text-foreground break-words mt-0.5">{n.text}</p>
+              ))}
+              {notePreview.length > 2 && (
+                <p className="text-xs text-muted-foreground">+{notePreview.length - 2} more</p>
+              )}
+            </div>
+          </TooltipPortal>
         )}
       </div>
     );
