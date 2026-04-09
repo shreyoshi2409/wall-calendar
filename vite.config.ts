@@ -2,8 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
-export default defineConfig(({ command }) => ({
-  base: command === "build" ? "/wall-calendar/" : "/",
+export default defineConfig({
   server: {
     host: "::",
     port: 8080,
@@ -18,4 +17,4 @@ export default defineConfig(({ command }) => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },
-}));
+});
