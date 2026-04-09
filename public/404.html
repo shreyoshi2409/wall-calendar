@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      var path = window.location.pathname;
+      window.location.replace(
+        window.location.origin + '/wall-calendar/' +
+        '?redirect=' + encodeURIComponent(path)
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
