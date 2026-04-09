@@ -2,6 +2,7 @@
 
 A beautiful, interactive wall calendar built with **React**, **TypeScript**, **Vite**, and **Tailwind CSS**. Features monthly views with seasonal imagery, holiday markers, and a notes panel.
 
+🌐 **Live Demo:** [wall-calendar-ten-green.vercel.app](https://wall-calendar-ten-green.vercel.app)
 ---
 
 ## 🛠 Tech Stack
