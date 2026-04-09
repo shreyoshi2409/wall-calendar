@@ -26,7 +26,7 @@ function getDaysInMonth(year: number, month: number) {
 
 function getStartDay(year: number, month: number) {
   const d = new Date(year, month, 1).getDay();
-  return d === 0 ? 6 : d - 1; // Monday-based
+  return d === 0 ? 6 : d - 1;
 }
 
 export default function CalendarGrid({
@@ -61,14 +61,19 @@ export default function CalendarGrid({
 
   const cells: React.ReactNode[] = [];
 
-  // Empty cells before month starts
   for (let i = 0; i < startDay; i++) {
     cells.push(<div key={`empty-${i}`} className="h-10 sm:h-12" />);
   }
 
   for (let day = 1; day <= totalDays; day++) {
     const date = new Date(year, month, day);
-    const dayOfWeek = (startDay + day - 1) % 7;
+    const cellIndex = startDay + day - 1;
+    const colIndex = cellIndex % 7; // 0=MON ... 6=SUN
+    const totalCells = startDay + totalDays;
+    const totalRows = Math.ceil(totalCells / 7);
+    const rowIndex = Math.floor(cellIndex / 7);
+
+    const dayOfWeek = colIndex;
     const isWeekend = dayOfWeek >= 5;
     const holiday = getHolidayForDate(month, day);
     const today = isToday(date);
@@ -78,12 +83,19 @@ export default function CalendarGrid({
     const hasNotes = getNotesForDate(date).length > 0;
     const notePreview = getNotesForDate(date);
 
-    // Days in last 2 rows show tooltip above, others show below
-    const totalCells = startDay + totalDays;
-    const totalRows = Math.ceil(totalCells / 7);
-    const cellIndex = startDay + day - 1;
-    const rowIndex = Math.floor(cellIndex / 7);
+    // Vertical: show above for last 2 rows
     const showAbove = rowIndex >= totalRows - 2;
+    // Horizontal: align right for last 2 cols, left for first 2 cols, center otherwise
+    const tooltipAlign =
+      colIndex >= 5 ? "right-0 translate-x-0" :
+      colIndex <= 1 ? "left-0 translate-x-0" :
+      "left-1/2 -translate-x-1/2";
+
+    const tooltipPositionClass = cn(
+      "absolute z-50",
+      tooltipAlign,
+      showAbove ? "bottom-full mb-2" : "top-full mt-2"
+    );
 
     cells.push(
       <div key={day} className="relative group">
@@ -104,19 +116,13 @@ export default function CalendarGrid({
           )}
           onClick={() => onDateClick(date)}
           onMouseDown={() => onDragStart(date)}
-          onMouseEnter={() => {
-            onDragOver(date);
-            setHoveredDay(day);
-          }}
+          onMouseEnter={() => { onDragOver(date); setHoveredDay(day); }}
           onMouseLeave={() => setHoveredDay(null)}
           onMouseUp={onDragEnd}
           onTouchStart={() => onDragStart(date)}
           onTouchEnd={onDragEnd}
           onKeyDown={(e) => handleKeyDown(e, day)}
-          onFocus={() => {
-            setFocusedDay(day);
-            onDateFocus?.(date);
-          }}
+          onFocus={() => { setFocusedDay(day); onDateFocus?.(date); }}
           aria-label={`${date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}${holiday ? `, ${holiday.name}` : ""}`}
         >
           {day}
@@ -131,13 +137,10 @@ export default function CalendarGrid({
         {/* Hover preview for notes */}
         {hoveredDay === day && notePreview.length > 0 && (
           <div
-            className={cn(
-              "absolute z-50 left-1/2 -translate-x-1/2",
-              "bg-card border border-border rounded-lg shadow-xl p-2",
-              "animate-float-in pointer-events-none",
-              showAbove ? "bottom-full mb-2" : "top-full mt-2"
+            className={cn(tooltipPositionClass,
+              "bg-card border border-border rounded-lg shadow-xl p-2 animate-float-in pointer-events-none"
             )}
-            style={{ width: "max-content", maxWidth: "200px" }}
+            style={{ width: "max-content", maxWidth: "180px" }}
           >
             {notePreview.slice(0, 2).map((n) => (
               <p key={n.id} className="text-xs text-foreground break-words">{n.text}</p>
@@ -146,7 +149,7 @@ export default function CalendarGrid({
               <p className="text-xs text-muted-foreground">+{notePreview.length - 2} more</p>
             )}
             {holiday && (
-              <p className="text-xs text-calendar-holiday font-medium mt-1">{holiday.name}</p>
+              <p className="text-xs text-calendar-holiday font-medium mt-1 break-words">{holiday.name}</p>
             )}
           </div>
         )}
@@ -154,13 +157,10 @@ export default function CalendarGrid({
         {/* Holiday tooltip */}
         {hoveredDay === day && holiday && notePreview.length === 0 && (
           <div
-            className={cn(
-              "absolute z-50 left-1/2 -translate-x-1/2",
-              "bg-card border border-border rounded-lg shadow-xl px-3 py-1.5",
-              "animate-float-in pointer-events-none",
-              showAbove ? "bottom-full mb-2" : "top-full mt-2"
+            className={cn(tooltipPositionClass,
+              "bg-card border border-border rounded-lg shadow-xl px-3 py-1.5 animate-float-in pointer-events-none"
             )}
-            style={{ width: "max-content", maxWidth: "200px" }}
+            style={{ width: "max-content", maxWidth: "180px" }}
           >
             <p className="text-xs text-calendar-holiday font-medium break-words">{holiday.name}</p>
           </div>
@@ -179,22 +179,16 @@ export default function CalendarGrid({
         !flipDirection && "animate-page-flip-in",
       )}
     >
-      {/* Day headers */}
       <div className="grid grid-cols-7 gap-1 mb-2">
         {DAYS.map((d, i) => (
-          <div
-            key={d}
-            className={cn(
-              "text-center text-xs sm:text-sm font-semibold py-2 tracking-wider",
-              i >= 5 ? "text-calendar-weekend" : "text-muted-foreground"
-            )}
-          >
+          <div key={d} className={cn(
+            "text-center text-xs sm:text-sm font-semibold py-2 tracking-wider",
+            i >= 5 ? "text-calendar-weekend" : "text-muted-foreground"
+          )}>
             {d}
           </div>
         ))}
       </div>
-
-      {/* Date cells */}
       <div className="grid grid-cols-7 gap-1">
         {cells}
       </div>
